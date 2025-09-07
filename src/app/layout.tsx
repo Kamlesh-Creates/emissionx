@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
-
+import Footer from "./components/footer";
+  
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CarbonCalc - Carbon Footprint Calculator",
-  description: "Track and reduce your carbon footprint with CarbonCalc",
+  title: "EmissionX - Track Your Carbon Footprint",
+  description: "Simple insights to live more sustainably. Track and reduce your carbon footprint with EmissionX.",
 };
 
 export default function RootLayout({
@@ -32,6 +33,7 @@ export default function RootLayout({
         <main className="min-h-screen">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );

@@ -12,9 +12,9 @@ const Navbar = () => {
 
   const navLinks = [
     { href: '/', label: 'Home' },
+    { href: '/calculator', label: 'Calculator' },
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/leaderboard', label: 'Leaderboard' },
-    { href: '/profile', label: 'Profile' },
+    { href: '/community', label: 'Community' },
   ];
 
   return (
@@ -24,7 +24,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <span className="text-2xl font-bold text-green-600">
-              CarbonCalc 🌿
+              EmissionX 🌿
             </span>
           </Link>
 

@@ -12,7 +12,9 @@ const Navbar = () => {
 
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/calculator', label: 'Calculator' },
+    { href: '/form', label: 'Calculator' },
+    { href: '/profile', label: 'Profile' },
+    { href: '/auth', label: 'Login' },
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/community', label: 'Community' },
   ];

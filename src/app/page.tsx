@@ -39,9 +39,15 @@ export default function Home() {
                   </svg>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">Personalized Calculator</h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed mb-4">
                   Get accurate carbon footprint calculations tailored to your lifestyle and activities.
                 </p>
+                <Link
+                  href="/form"
+                  className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-200"
+                >
+                  Try Calculator
+                </Link>
               </div>
             </div>
 

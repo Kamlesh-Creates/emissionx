@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+  console.warn('⚠️ MONGODB_URI not found. Using demo mode without database.');
+  // Don't throw error, just warn and continue
 }
 
 /**
@@ -18,6 +19,12 @@ if (!cached) {
 }
 
 async function connectDB() {
+  // If no MONGODB_URI, return a mock connection for demo mode
+  if (!MONGODB_URI) {
+    console.log('🔧 Running in demo mode without database');
+    return null;
+  }
+
   if (cached.conn) {
     return cached.conn;
   }

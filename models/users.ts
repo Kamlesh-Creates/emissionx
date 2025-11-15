@@ -170,7 +170,7 @@ UserSchema.virtual('id').get(function(this: IUser) {
   return this._id.toString();
 });
 
-// Pre-save middleware to set default values
+
 UserSchema.pre('save', function(this: IUser, next: () => void) {
   if (this.isNew) {
     // Set default preferences if not provided

@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Create activity instance
     const activity = new Activity({
       userId,
       type: type as ActivityType,
@@ -48,6 +49,27 @@ export async function POST(request: NextRequest) {
       data,
       timestamp: timestamp ? new Date(timestamp) : new Date()
     });
+    
+    // Calculate emissions explicitly before saving to ensure it exists for validation
+    // The pre-save hook will also run, but this ensures emissions are set
+    try {
+      activity.emissions = activity.calculateEmissions();
+    } catch (calcError) {
+      console.error('Error calculating emissions:', calcError);
+      // Set default emissions if calculation fails
+      activity.emissions = {
+        co2: 0,
+        totalCO2e: 0,
+        factors: {
+          co2PerUnit: 0,
+          unit: 'unknown',
+          source: 'default',
+          lastUpdated: new Date()
+        },
+        calculationMethod: 'default' as const,
+        verified: false
+      };
+    }
     
     await activity.save();
     
@@ -62,10 +84,27 @@ export async function POST(request: NextRequest) {
         timestamp: activity.timestamp
       }
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating activity:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map((err: any) => err.message);
+      return NextResponse.json(
+        { 
+          error: 'Validation error',
+          details: errors.join(', ')
+        },
+        { status: 400 }
+      );
+    }
+
+    // Handle other errors
     return NextResponse.json(
-      { error: 'Failed to create activity' },
+      { 
+        error: 'Failed to create activity',
+        details: error.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }

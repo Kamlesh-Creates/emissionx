@@ -25,17 +25,39 @@ async function connectDB() {
     return null;
   }
 
+  // Return cached connection if available and connected
   if (cached.conn) {
-    return cached.conn;
+    // Check if connection is still alive
+    if (mongoose.connection.readyState === 1) {
+      return cached.conn;
+    }
+    // Connection died, reset cache
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      maxPoolSize: 1, // Maintain only 1 connection for serverless (reduces overhead)
+      minPoolSize: 1, // Keep at least 1 connection alive
+      maxIdleTimeMS: 30000, // Close idle connections after 30s
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s (important for serverless)
+      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      connectTimeoutMS: 10000, // Connection timeout set to 10s
+      heartbeatFrequencyMS: 10000, // Send heartbeat every 10s to keep connection alive
+      // Optimize for faster connection
+      directConnection: false, // Use connection pool (faster for MongoDB Atlas)
+      retryWrites: true, // Enable retry writes
+      retryReads: true, // Enable retry reads
+      // DNS optimization
+      family: 4, // Force IPv4 (faster DNS resolution)
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
       console.log('✅ Connected to MongoDB');
+      // Set connection to be less strict about timing
+      mongooseInstance.connection.setMaxListeners(0);
       return mongooseInstance;
     });
   }

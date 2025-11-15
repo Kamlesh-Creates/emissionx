@@ -230,9 +230,29 @@ ActivitySchema.virtual('id').get(function(this: IActivity) {
 
 // Pre-save middleware to calculate emissions if not provided
 ActivitySchema.pre('save', function(this: IActivity, next: () => void) {
-  if (this.isNew && !this.emissions) {
+  // Always calculate emissions for new documents if not already set
+  if (this.isNew && (!this.emissions || !this.emissions.co2 || !this.emissions.factors || !this.emissions.factors?.unit)) {
     // Calculate emissions based on activity type and data
-    this.emissions = calculateEmissionsForActivity(this);
+    try {
+      const calculatedEmissions = calculateEmissionsForActivity(this);
+      this.emissions = calculatedEmissions;
+    } catch (error) {
+      console.error('Error calculating emissions for activity:', error);
+      console.error('Activity data:', { type: this.type, category: this.category, data: this.data });
+      // Set default emissions if calculation fails
+      this.emissions = {
+        co2: 0,
+        totalCO2e: 0,
+        factors: {
+          co2PerUnit: 0,
+          unit: 'unknown',
+          source: 'default',
+          lastUpdated: new Date()
+        },
+        calculationMethod: 'default' as const,
+        verified: false
+      };
+    }
   }
   next();
 });
@@ -387,10 +407,21 @@ const calculateEmissionsForActivity = (activity: IActivity) => {
       break;
   }
 
+  // Ensure factors has a valid unit
+  if (!factors.unit) {
+    factors.unit = 'unknown';
+  }
+
   return {
-    co2,
-    totalCO2e: co2,
-    factors,
+    co2: co2 || 0,
+    totalCO2e: co2 || 0,
+    factors: {
+      ...factors,
+      co2PerUnit: factors.co2PerUnit || 0,
+      unit: factors.unit,
+      source: factors.source || 'default',
+      lastUpdated: factors.lastUpdated || new Date()
+    },
     calculationMethod: 'default' as const,
     verified: false
   };

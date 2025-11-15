@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface CarbonFormData {
   transport: {
@@ -58,8 +59,11 @@ export default function CarbonFootprintCalculator() {
 
   const [result, setResult] = useState<CarbonResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const router = useRouter();
 
   // Real-time validation function
   const validateField = useCallback((section: keyof CarbonFormData, field: string, value: number): string | null => {
@@ -829,17 +833,202 @@ export default function CarbonFootprintCalculator() {
                 </div>
               </div>
 
+              {/* Save Success Message */}
+              {saveSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                  <p className="text-sm text-green-600">{saveSuccess}</p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 mt-6">
-                <Link
-                  href="/profile"
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 text-center"
+                <button
+                  onClick={async () => {
+                    const userId = localStorage.getItem('userId');
+                    if (!userId) {
+                      setError('Please login to save your footprint to your profile');
+                      router.push('/auth');
+                      return;
+                    }
+
+                    if (!result) {
+                      setError('No calculation results to save');
+                      return;
+                    }
+
+                    setIsSaving(true);
+                    setError(null);
+                    setSaveSuccess(null);
+
+                    try {
+                      // Create activities for each category that has emissions
+                      const activities = [];
+                      const timestamp = new Date();
+
+                      // Transport activity
+                      if (result.breakdown.transport > 0) {
+                        const carKm = formData.transport.carKm * 30; // Monthly
+                        const busKm = formData.transport.busKm * 30; // Monthly
+                        const flightKm = formData.transport.flightsHours * 800; // Approx km
+
+                        if (carKm > 0 || busKm > 0 || flightKm > 0) {
+                          activities.push({
+                            userId,
+                            type: 'transport',
+                            category: 'car',
+                            data: {
+                              distance: carKm,
+                              vehicleType: 'car',
+                              fuelType: 'petrol',
+                              passengers: 1
+                            },
+                            timestamp
+                          });
+                        }
+                      }
+
+                      // Electricity activity
+                      if (result.breakdown.electricity > 0 && formData.electricity.unitsPerMonth > 0) {
+                        activities.push({
+                          userId,
+                          type: 'electricity',
+                          category: 'electricity_consumption',
+                          data: {
+                            units: formData.electricity.unitsPerMonth,
+                            appliance: 'home'
+                          },
+                          timestamp
+                        });
+                      }
+
+                      // LPG activity
+                      if (result.breakdown.lpg > 0 && formData.lpg.cylindersPerMonth > 0) {
+                        activities.push({
+                          userId,
+                          type: 'lpg',
+                          category: 'lpg_usage',
+                          data: {
+                            cylinders: formData.lpg.cylindersPerMonth,
+                            cylinderSize: 14.2
+                          },
+                          timestamp
+                        });
+                      }
+
+                      // Diet activity
+                      if (result.breakdown.diet > 0) {
+                        // Use representative food types for calculation
+                        // For vegetarian: use vegetables as base
+                        // For non-vegetarian: use chicken as representative
+                        activities.push({
+                          userId,
+                          type: 'diet',
+                          category: 'food_consumption',
+                          data: {
+                            foodType: formData.diet === 'veg' ? 'vegetables' : 'chicken',
+                            quantity: formData.diet === 'veg' ? 15 : 25, // Approximate monthly kg
+                            mealType: 'lunch'
+                          },
+                          timestamp
+                        });
+                      }
+
+                      // Purchases activity
+                      if (result.breakdown.purchases > 0 && formData.purchases.monthlySpend > 0) {
+                        activities.push({
+                          userId,
+                          type: 'purchases',
+                          category: 'shopping',
+                          data: {
+                            amount: formData.purchases.monthlySpend,
+                            category: 'general',
+                            item: 'monthly_purchases'
+                          },
+                          timestamp
+                        });
+                      }
+
+                      // Save all activities
+                      const savePromises = activities.map(async (activity, index) => {
+                        const response = await fetch('/api/activities', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify(activity),
+                        });
+
+                        if (!response.ok) {
+                          const errorData = await response.json().catch(() => ({}));
+                          return {
+                            index,
+                            activity,
+                            error: errorData.details || errorData.error || `HTTP ${response.status}`,
+                            response
+                          };
+                        }
+                        return { index, activity, success: true };
+                      });
+
+                      const results = await Promise.all(savePromises);
+                      const failedSaves = results.filter(result => !result.success);
+
+                      if (failedSaves.length > 0) {
+                        const errorMessages = failedSaves.map((failure: any) => {
+                          const type = failure.activity?.type || 'unknown';
+                          const category = failure.activity?.category || 'unknown';
+                          return `${type}/${category}: ${failure.error}`;
+                        });
+                        throw new Error(`Failed to save ${failedSaves.length} activity(ies): ${errorMessages.join('; ')}`);
+                      }
+
+                      // Update user's total emissions
+                      const userUpdateResponse = await fetch(`/api/users/${userId}`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          totalEmissions: result.totalEmissions
+                        }),
+                      });
+
+                      if (!userUpdateResponse.ok) {
+                        console.warn('Failed to update user emissions, but activities were saved');
+                      }
+
+                      setSaveSuccess('Your carbon footprint has been saved to your profile!');
+                      
+                      // Redirect to profile after a short delay
+                      setTimeout(() => {
+                        router.push('/profile');
+                      }, 1500);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Failed to save to profile. Please try again.');
+                      console.error('Save error:', err);
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }}
+                  disabled={isSaving || !result}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
-                  Save to Profile
-                </Link>
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save to Profile</span>
+                  )}
+                </button>
                 <button
                   onClick={() => {
                     setResult(null);
+                    setSaveSuccess(null);
                     setFormData({
                       transport: { carKm: 0, busKm: 0, flightsHours: 0 },
                       electricity: { unitsPerMonth: 0 },

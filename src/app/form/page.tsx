@@ -971,10 +971,12 @@ export default function CarbonFootprintCalculator() {
                       });
 
                       const results = await Promise.all(savePromises);
-                      const failedSaves = results.filter(result => !result.success);
+                      const failedSaves = results.filter((result) => {
+                        return 'error' in result && !('success' in result);
+                      }) as Array<{ index: number; activity: { type?: string; category?: string }; error: string }>;
 
                       if (failedSaves.length > 0) {
-                        const errorMessages = failedSaves.map((failure: any) => {
+                        const errorMessages = failedSaves.map((failure) => {
                           const type = failure.activity?.type || 'unknown';
                           const category = failure.activity?.category || 'unknown';
                           return `${type}/${category}: ${failure.error}`;

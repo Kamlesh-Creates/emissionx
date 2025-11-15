@@ -116,11 +116,11 @@ export async function POST(request: NextRequest) {
       { message: 'Invalid action. Use ?action=register or ?action=login' },
       { status: 400 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Auth error:', error);
 
-    // Handle duplicate email error
-    if (error.code === 11000) {
+    // Handle duplicate email error (MongoDB duplicate key error)
+    if (error && typeof error === 'object' && 'code' in error && error.code === 11000) {
       return NextResponse.json(
         { message: 'An account with this email already exists' },
         { status: 409 }
@@ -128,8 +128,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map((err: any) => err.message);
+    if (
+      error &&
+      typeof error === 'object' &&
+      'name' in error &&
+      error.name === 'ValidationError' &&
+      'errors' in error
+    ) {
+      const validationError = error as unknown as { errors: Record<string, { message: string }> };
+      const errors = Object.values(validationError.errors).map((err) => err.message);
       return NextResponse.json(
         { message: `Validation error: ${errors.join(', ')}` },
         { status: 400 }

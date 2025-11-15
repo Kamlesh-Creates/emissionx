@@ -84,12 +84,19 @@ export async function POST(request: NextRequest) {
         timestamp: activity.timestamp
       }
     }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating activity:', error);
     
     // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map((err: any) => err.message);
+    if (
+      error &&
+      typeof error === 'object' &&
+      'name' in error &&
+      error.name === 'ValidationError' &&
+      'errors' in error
+    ) {
+      const validationError = error as unknown as { errors: Record<string, { message: string }> };
+      const errors = Object.values(validationError.errors).map((err) => err.message);
       return NextResponse.json(
         { 
           error: 'Validation error',
@@ -100,10 +107,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle other errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { 
         error: 'Failed to create activity',
-        details: error.message || 'Unknown error'
+        details: errorMessage
       },
       { status: 500 }
     );

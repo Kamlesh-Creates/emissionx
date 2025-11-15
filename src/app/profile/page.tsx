@@ -89,8 +89,7 @@ const getRarityColor = (rarity: string) => {
 // Fetch user data
 async function getUserData(userId: string): Promise<User | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002';
-    const response = await fetch(`${baseUrl}/api/users/${userId}`, {
+    const response = await fetch(`/api/users/${userId}`, {
       cache: 'no-store'
     });
     
@@ -110,8 +109,7 @@ async function getUserData(userId: string): Promise<User | null> {
 // Fetch user activities
 async function getUserActivities(userId: string): Promise<Activity[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002';
-    const response = await fetch(`${baseUrl}/api/users/${userId}/activities?limit=5`, {
+    const response = await fetch(`/api/users/${userId}/activities?limit=5`, {
       cache: 'no-store'
     });
     
@@ -261,9 +259,23 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
-          <p className="text-gray-600">Track your carbon footprint journey</p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+            <p className="text-gray-600">Track your carbon footprint journey</p>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('userId');
+              router.push('/');
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Logout</span>
+          </button>
         </div>
 
         {/* Profile Card */}

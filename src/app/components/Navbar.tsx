@@ -1,20 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // Check if user is logged in
+    const userId = localStorage.getItem('userId');
+    setIsLoggedIn(!!userId);
+  }, [pathname]); // Re-check when route changes
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const handleLogout = () => {
+    // Clear localStorage
+    localStorage.removeItem('userId');
+    setIsLoggedIn(false);
+    // Redirect to home page
+    router.push('/');
+    // Close mobile menu if open
+    setIsMenuOpen(false);
+  };
+
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/form', label: 'Calculator' },
-    { href: '/profile', label: 'Profile' },
-    { href: '/auth', label: 'Login' },
+    ...(isLoggedIn ? [{ href: '/profile', label: 'Profile' }] : []),
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/community', label: 'Community' },
   ];
@@ -41,6 +60,24 @@ const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+            {isLoggedIn ? (
+              <button
+                onClick={handleLogout}
+                className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium flex items-center space-x-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            ) : (
+              <Link
+                href="/auth"
+                className="text-gray-700 hover:text-green-600 transition-colors duration-200 font-medium"
+              >
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -90,6 +127,28 @@ const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
+              {isLoggedIn ? (
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200 font-medium flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Logout</span>
+                </button>
+              ) : (
+                <Link
+                  href="/auth"
+                  className="block px-3 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors duration-200 font-medium"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         )}

@@ -1,90 +1,121 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB, User } from '@/models';
 
-interface AuthRequest {
+interface RegisterRequest {
   name: string;
+  email: string;
+}
+
+interface LoginRequest {
   email: string;
 }
 
 interface AuthResponse {
   userId: string;
   message?: string;
-  isNewUser?: boolean;
 }
 
+// Registration endpoint
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const body: AuthRequest = await request.json();
-    const { name, email } = body;
+    const url = new URL(request.url);
+    const action = url.searchParams.get('action'); // 'register' or 'login'
 
-    // Validate input
-    if (!name || !email) {
-      return NextResponse.json(
-        { message: 'Name and email are required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+
+    // Handle Registration
+    if (action === 'register') {
+      const { name, email }: RegisterRequest = body;
+
+      // Validate input
+      if (!name || !email) {
+        return NextResponse.json(
+          { message: 'Name and email are required' },
+          { status: 400 }
+        );
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { message: 'Please enter a valid email address' },
+          { status: 400 }
+        );
+      }
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return NextResponse.json(
+          { message: 'An account with this email already exists. Please login instead.' },
+          { status: 409 }
+        );
+      }
+
+      // Create new user (defaults will be set by pre-save middleware)
+      const newUser = new User({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+      });
+
+      await newUser.save();
+
+      const response: AuthResponse = {
+        userId: newUser._id.toString(),
+        message: 'Account created successfully! Welcome to EmissionX!',
+      };
+
+      return NextResponse.json(response, { status: 201 });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { message: 'Please enter a valid email address' },
-        { status: 400 }
-      );
-    }
+    // Handle Login
+    if (action === 'login') {
+      const { email }: LoginRequest = body;
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+      // Validate input
+      if (!email) {
+        return NextResponse.json(
+          { message: 'Email is required' },
+          { status: 400 }
+        );
+      }
 
-    if (existingUser) {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { message: 'Please enter a valid email address' },
+          { status: 400 }
+        );
+      }
+
+      // Check if user exists
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      
+      if (!existingUser) {
+        return NextResponse.json(
+          { message: 'No account found with this email. Please register first.' },
+          { status: 404 }
+        );
+      }
+
       // User exists, return their ID
       const response: AuthResponse = {
         userId: existingUser._id.toString(),
         message: 'Welcome back!',
-        isNewUser: false,
       };
+
       return NextResponse.json(response);
     }
 
-    // Create new user
-    const newUser = new User({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      preferences: {
-        units: 'metric',
-        currency: 'USD',
-        notifications: {
-          email: true,
-          push: false,
-        },
-      },
-      profile: {
-        bio: '',
-        location: '',
-        website: '',
-      },
-      stats: {
-        totalEmissions: 0,
-        monthlyAverage: 0,
-        yearlyTotal: 0,
-        streak: 0,
-        lastActivityDate: null,
-        achievements: [],
-      },
-    });
-
-    await newUser.save();
-
-    const response: AuthResponse = {
-      userId: newUser._id.toString(),
-      message: 'Account created successfully!',
-      isNewUser: true,
-    };
-
-    return NextResponse.json(response, { status: 201 });
+    // Invalid action
+    return NextResponse.json(
+      { message: 'Invalid action. Use ?action=register or ?action=login' },
+      { status: 400 }
+    );
   } catch (error: any) {
     console.error('Auth error:', error);
 

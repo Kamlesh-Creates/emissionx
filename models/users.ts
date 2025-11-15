@@ -160,7 +160,7 @@ const UserSchema = new Schema<IUser>({
 });
 
 // Indexes for better performance
-UserSchema.index({ email: 1 });
+// Note: email index is automatically created by unique: true, so we don't need to add it explicitly
 UserSchema.index({ 'profile.location.country': 1 });
 UserSchema.index({ 'stats.totalEmissions': -1 });
 UserSchema.index({ createdAt: -1 });

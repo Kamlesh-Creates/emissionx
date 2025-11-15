@@ -318,7 +318,7 @@ export default function AuthPage() {
               {/* Switch to Register */}
               <div className="text-center text-sm text-gray-600">
                 <p>
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button
                     type="button"
                     onClick={() => switchMode('register')}
